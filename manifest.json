@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "devtrack.streak",
+  "name": "DevTrack",
+  "version": "1.0.0",
+  "author": "shreyasmene06",
+  "license": "MIT",
+  "description": "Native Omarchy status bar widget and popout dashboard for tracking LeetCode, Codeforces, and GitHub streaks with automated daily reminders.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "DevTrack Streak",
+    "description": "Coding activity and streak monitor with daily reminders",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
