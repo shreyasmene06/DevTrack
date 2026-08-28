@@ -3,7 +3,7 @@
 DevTrack - Activity Fetcher & Streak Engine
 Fetches coding activity from LeetCode, Codeforces, and GitHub.
 Computes daily activity, streaks, 14-week (98-day) GitHub contribution heatmap, and statistics.
-Secured against symlink redirection, unbounded network/file reads, and parameter injection.
+Secured with O_NOFOLLOW file descriptors, atomic writes, bounded reads, and oversized payload rejection.
 """
 
 import os
@@ -11,6 +11,7 @@ import sys
 import json
 import time
 import re
+import stat
 import tempfile
 import urllib.request
 import urllib.error
@@ -59,15 +60,71 @@ def sanitize_username(u):
         return u_clean
     return ""
 
-def secure_write_json(path, data):
-    dir_path = os.path.dirname(os.path.abspath(path))
-    if os.path.islink(dir_path):
-        return False
-    os.makedirs(dir_path, mode=0o700, exist_ok=True)
-    
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_devtrack_")
+def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
+    """
+    Securely reads and parses a JSON file without TOCTOU symlink races or unbounded reads.
+    Opens the file with O_NOFOLLOW and reads max_bytes + 1 to strictly reject oversized files.
+    """
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
     try:
-        with open(tmp_fd, "w", encoding="utf-8") as f:
+        fd = os.open(path, flags)
+    except (OSError, IOError):
+        return None
+
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            os.close(fd)
+            return None
+        if hasattr(os, "getuid") and st.st_uid != os.getuid():
+            os.close(fd)
+            return None
+        if st.st_size > max_bytes:
+            os.close(fd)
+            return None
+        
+        with open(fd, "r", encoding="utf-8", closefd=True) as f:
+            raw = f.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                # File exceeds maximum allowed size; reject completely
+                return None
+            if not raw.strip():
+                return None
+            return json.loads(raw)
+    except Exception as e:
+        return None
+
+def secure_write_json(path, data):
+    """
+    Securely and atomically writes JSON data to path.
+    Verifies directory ownership and O_NOFOLLOW to avoid symlink redirection.
+    """
+    dir_path = os.path.dirname(os.path.abspath(path))
+    
+    try:
+        os.makedirs(dir_path, mode=0o700, exist_ok=True)
+    except (OSError, IOError):
+        return False
+        
+    try:
+        dir_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
+        dir_fd = os.open(dir_path, dir_flags)
+        try:
+            st = os.fstat(dir_fd)
+            if hasattr(os, "getuid") and st.st_uid != os.getuid():
+                return False
+        finally:
+            os.close(dir_fd)
+    except (OSError, IOError):
+        return False
+
+    try:
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_devtrack_")
+    except (OSError, IOError):
+        return False
+
+    try:
+        with open(tmp_fd, "w", encoding="utf-8", closefd=True) as f:
             json.dump(data, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
@@ -78,23 +135,10 @@ def secure_write_json(path, data):
         if os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
-            except Exception:
+            except OSError:
                 pass
         print(f"Error saving {path}: {e}", file=sys.stderr)
         return False
-
-def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
-    if not os.path.exists(path) or os.path.islink(path):
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            raw = f.read(max_bytes)
-            if not raw:
-                return None
-            return json.loads(raw)
-    except Exception as e:
-        print(f"Error reading {path}: {e}", file=sys.stderr)
-        return None
 
 def load_config():
     cfg = secure_read_json(CONFIG_PATH)
@@ -114,7 +158,10 @@ def fetch_url(url, data=None, headers=None, timeout=10):
         req_headers.update(headers)
     req = urllib.request.Request(url, data=data, headers=req_headers)
     with urllib.request.urlopen(req, timeout=timeout) as response:
-        return response.read(MAX_NETWORK_BYTES)
+        payload = response.read(MAX_NETWORK_BYTES + 1)
+        if len(payload) > MAX_NETWORK_BYTES:
+            raise ValueError(f"Network payload exceeded maximum allowed size ({MAX_NETWORK_BYTES} bytes)")
+        return payload
 
 def get_local_date_str(ts=None):
     if ts is None:

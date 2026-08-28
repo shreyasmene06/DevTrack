@@ -2,12 +2,14 @@
 """
 DevTrack Config Saver
 Validates, sanitizes, and atomically persists DevTrack configuration to ~/.config/omarchy/devtrack/config.json
+Secured with O_NOFOLLOW file descriptors, atomic tempfile replacement, and oversized payload rejection.
 """
 
 import os
 import sys
 import json
 import re
+import stat
 import tempfile
 
 CONFIG_DIR = os.path.expanduser("~/.config/omarchy/devtrack")
@@ -59,15 +61,70 @@ def sanitize_time(t):
         return t_clean
     return "21:00"
 
-def secure_write_json(path, data):
-    dir_path = os.path.dirname(os.path.abspath(path))
-    if os.path.islink(dir_path):
-        return False
-    os.makedirs(dir_path, mode=0o700, exist_ok=True)
-    
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_devtrack_")
+def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
+    """
+    Securely reads and parses a JSON file without TOCTOU symlink races or unbounded reads.
+    Opens the file with O_NOFOLLOW and reads max_bytes + 1 to strictly reject oversized files.
+    """
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
     try:
-        with open(tmp_fd, "w", encoding="utf-8") as f:
+        fd = os.open(path, flags)
+    except (OSError, IOError):
+        return None
+
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            os.close(fd)
+            return None
+        if hasattr(os, "getuid") and st.st_uid != os.getuid():
+            os.close(fd)
+            return None
+        if st.st_size > max_bytes:
+            os.close(fd)
+            return None
+        
+        with open(fd, "r", encoding="utf-8", closefd=True) as f:
+            raw = f.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                return None
+            if not raw.strip():
+                return None
+            return json.loads(raw)
+    except Exception:
+        return None
+
+def secure_write_json(path, data):
+    """
+    Securely and atomically writes JSON data to path.
+    Verifies directory ownership and O_NOFOLLOW to avoid symlink redirection.
+    """
+    dir_path = os.path.dirname(os.path.abspath(path))
+    
+    try:
+        os.makedirs(dir_path, mode=0o700, exist_ok=True)
+    except (OSError, IOError):
+        return False
+        
+    try:
+        dir_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
+        dir_fd = os.open(dir_path, dir_flags)
+        try:
+            st = os.fstat(dir_fd)
+            if hasattr(os, "getuid") and st.st_uid != os.getuid():
+                return False
+        finally:
+            os.close(dir_fd)
+    except (OSError, IOError):
+        return False
+
+    try:
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_devtrack_")
+    except (OSError, IOError):
+        return False
+
+    try:
+        with open(tmp_fd, "w", encoding="utf-8", closefd=True) as f:
             json.dump(data, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
@@ -78,23 +135,10 @@ def secure_write_json(path, data):
         if os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
-            except Exception:
+            except OSError:
                 pass
         print(f"Error writing {path}: {e}", file=sys.stderr)
         return False
-
-def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
-    if not os.path.exists(path) or os.path.islink(path):
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            raw = f.read(max_bytes)
-            if not raw:
-                return None
-            return json.loads(raw)
-    except Exception as e:
-        print(f"Error reading {path}: {e}", file=sys.stderr)
-        return None
 
 def save_config(new_cfg_dict):
     current = secure_read_json(CONFIG_PATH) or DEFAULT_CONFIG.copy()
@@ -138,7 +182,7 @@ def save_config(new_cfg_dict):
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         try:
-            raw_input = sys.argv[1][:16384]  # Bounded input
+            raw_input = sys.argv[1][:16384]
             payload = json.loads(raw_input)
             save_config(payload)
         except Exception as e:
