@@ -18,6 +18,15 @@ CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 DATA_PATH = os.path.join(CONFIG_DIR, "data.json")
 MAX_FILE_BYTES = 1024 * 1024
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PLUGIN_ROOT = os.path.dirname(SCRIPT_DIR)
+ICON_PATH = os.path.join(PLUGIN_ROOT, "assets", "devtrack.svg")
+
+def get_notification_icon():
+    if os.path.exists(ICON_PATH) and not os.path.islink(ICON_PATH):
+        return ICON_PATH
+    return "dialog-warning"
+
 def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
     """
     Securely reads and parses a JSON file without TOCTOU symlink races or unbounded reads.
@@ -96,7 +105,8 @@ def secure_write_json(path, data):
                 pass
         return False
 
-def send_notification(title, message, urgency="normal", icon="dialog-warning"):
+def send_notification(title, message, urgency="normal"):
+    icon = get_notification_icon()
     try:
         subprocess.run([
             "notify-send",
@@ -104,7 +114,7 @@ def send_notification(title, message, urgency="normal", icon="dialog-warning"):
             "-u", urgency,
             "-i", icon,
             str(title)[:100],
-            str(message)[:250]
+            str(message)[:350]
         ], check=True, timeout=5)
         return True
     except Exception as e:
@@ -142,13 +152,21 @@ def check_and_notify(force=False):
     target_minutes = rem_hour * 60 + rem_minute
     
     if force or (current_minutes >= target_minutes and last_notified != today_iso):
-        title = f"[DevTrack] Streak Alert ({streak} Day{'s' if streak != 1 else ''})"
         if streak > 0:
-            msg = f"It's past {rem_time_str}. No submissions recorded today. Solve a problem on LeetCode / Codeforces or push to GitHub to maintain your {streak}-day streak."
+            title = "DevTrack · Daily Streak Alert"
+            msg = (
+                f"<b>{streak}-Day Coding Streak at Risk</b>\n"
+                f"It is past {rem_time_str}. No activity recorded today on LeetCode, Codeforces, or GitHub.\n"
+                "Solve 1 problem or push a commit to preserve your streak."
+            )
         else:
-            msg = f"It's past {rem_time_str}. Start your daily coding streak on LeetCode, Codeforces, or GitHub."
+            title = "DevTrack · Coding Reminder"
+            msg = (
+                "<b>Start Your Coding Streak Today</b>\n"
+                f"It is past {rem_time_str}. Solve a problem on LeetCode, Codeforces, or GitHub to begin your streak."
+            )
             
-        send_notification(title, msg, urgency="critical", icon="dialog-warning")
+        send_notification(title, msg, urgency="critical")
         
         cfg = secure_read_json(CONFIG_PATH)
         if cfg:
