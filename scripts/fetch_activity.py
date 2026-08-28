@@ -3,12 +3,15 @@
 DevTrack - Activity Fetcher & Streak Engine
 Fetches coding activity from LeetCode, Codeforces, and GitHub.
 Computes daily activity, streaks, 14-week (98-day) GitHub contribution heatmap, and statistics.
+Secured against symlink redirection, unbounded network/file reads, and parameter injection.
 """
 
 import os
 import sys
 import json
 import time
+import re
+import tempfile
 import urllib.request
 import urllib.error
 from datetime import datetime, date, timedelta
@@ -16,6 +19,11 @@ from datetime import datetime, date, timedelta
 CONFIG_DIR = os.path.expanduser("~/.config/omarchy/devtrack")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 DATA_PATH = os.path.join(CONFIG_DIR, "data.json")
+
+MAX_NETWORK_BYTES = 512 * 1024    # 512 KB
+MAX_FILE_BYTES = 1024 * 1024       # 1 MB
+USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-\.]{1,64}$")
+TIME_PATTERN = re.compile(r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
 
 DEFAULT_CONFIG = {
     "platforms": {
@@ -43,32 +51,61 @@ DEFAULT_CONFIG = {
     }
 }
 
-def load_config():
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    if not os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(DEFAULT_CONFIG, f, indent=2)
-        return DEFAULT_CONFIG
+def sanitize_username(u):
+    if not u or not isinstance(u, str):
+        return ""
+    u_clean = u.strip()
+    if USERNAME_PATTERN.match(u_clean):
+        return u_clean
+    return ""
+
+def secure_write_json(path, data):
+    dir_path = os.path.dirname(os.path.abspath(path))
+    if os.path.islink(dir_path):
+        return False
+    os.makedirs(dir_path, mode=0o700, exist_ok=True)
+    
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_devtrack_")
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
-            merged = DEFAULT_CONFIG.copy()
-            merged.update(cfg)
-            return merged
+        with open(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, path)
+        return True
     except Exception as e:
-        print(f"Error loading config: {e}", file=sys.stderr)
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+        print(f"Error saving {path}: {e}", file=sys.stderr)
+        return False
+
+def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
+    if not os.path.exists(path) or os.path.islink(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = f.read(max_bytes)
+            if not raw:
+                return None
+            return json.loads(raw)
+    except Exception as e:
+        print(f"Error reading {path}: {e}", file=sys.stderr)
+        return None
+
+def load_config():
+    cfg = secure_read_json(CONFIG_PATH)
+    if not cfg:
+        secure_write_json(CONFIG_PATH, DEFAULT_CONFIG)
         return DEFAULT_CONFIG
+    merged = DEFAULT_CONFIG.copy()
+    merged.update(cfg)
+    return merged
 
-def load_previous_data():
-    if os.path.exists(DATA_PATH):
-        try:
-            with open(DATA_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return None
-
-def fetch_url(url, data=None, headers=None, timeout=12):
+def fetch_url(url, data=None, headers=None, timeout=10):
     req_headers = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
@@ -77,7 +114,7 @@ def fetch_url(url, data=None, headers=None, timeout=12):
         req_headers.update(headers)
     req = urllib.request.Request(url, data=data, headers=req_headers)
     with urllib.request.urlopen(req, timeout=timeout) as response:
-        return response.read()
+        return response.read(MAX_NETWORK_BYTES)
 
 def get_local_date_str(ts=None):
     if ts is None:
@@ -86,10 +123,10 @@ def get_local_date_str(ts=None):
 
 # ----------------- LEETCODE -----------------
 def fetch_leetcode(username):
-    if not username or not username.strip():
+    username = sanitize_username(username)
+    if not username:
         return {"enabled": False, "status": "no_username", "today_count": 0, "streak": 0, "total_solved": 0, "history": {}}
     
-    username = username.strip()
     result = {
         "platform": "leetcode",
         "username": username,
@@ -140,7 +177,7 @@ def fetch_leetcode(username):
         stats = user_data.get("submitStats", {}).get("acSubmissionNum", [])
         for item in stats:
             if item.get("difficulty") == "All":
-                result["total_solved"] = item.get("count", 0)
+                result["total_solved"] = int(item.get("count", 0))
         
         cal_str = user_data.get("submissionCalendar")
         today_iso = date.today().isoformat()
@@ -149,16 +186,17 @@ def fetch_leetcode(username):
         if cal_str:
             cal_dict = json.loads(cal_str)
             for ts_str, count in cal_dict.items():
-                d_str = get_local_date_str(int(ts_str))
-                history[d_str] = history.get(d_str, 0) + int(count)
+                if isinstance(count, (int, float)) and int(count) > 0:
+                    d_str = get_local_date_str(int(ts_str))
+                    history[d_str] = history.get(d_str, 0) + int(count)
         
         recent_list = data.get("data", {}).get("recentAcSubmissionList", []) or []
-        for sub in recent_list:
+        for sub in recent_list[:20]:
             ts = int(sub.get("timestamp", 0))
             d_str = get_local_date_str(ts)
             history[d_str] = max(history.get(d_str, 0), 1)
             result["recent"].append({
-                "title": sub.get("title"),
+                "title": str(sub.get("title", ""))[:60],
                 "timestamp": ts,
                 "date": d_str
             })
@@ -178,20 +216,20 @@ def fetch_leetcode(username):
             check_date -= timedelta(days=1)
             
         official_streak = user_data.get("userCalendar", {}).get("streak", 0) if user_data.get("userCalendar") else 0
-        result["streak"] = max(cur_streak, official_streak)
+        result["streak"] = max(cur_streak, int(official_streak or 0))
         
     except Exception as e:
-        result["error"] = str(e)
+        result["error"] = str(e)[:100]
         print(f"LeetCode error: {e}", file=sys.stderr)
         
     return result
 
 # ----------------- CODEFORCES -----------------
 def fetch_codeforces(handle):
-    if not handle or not handle.strip():
+    handle = sanitize_username(handle)
+    if not handle:
         return {"enabled": False, "status": "no_handle", "today_count": 0, "streak": 0, "rating": 0, "rank": "unrated", "history": {}}
         
-    handle = handle.strip()
     result = {
         "platform": "codeforces",
         "username": handle,
@@ -213,23 +251,23 @@ def fetch_codeforces(handle):
         info_data = json.loads(info_raw.decode("utf-8"))
         if info_data.get("status") == "OK" and info_data.get("result"):
             uinfo = info_data["result"][0]
-            result["rating"] = uinfo.get("rating", 0)
-            result["rank"] = uinfo.get("rank", "unrated")
+            result["rating"] = int(uinfo.get("rating", 0) or 0)
+            result["rank"] = str(uinfo.get("rank", "unrated"))[:30]
             
         sub_raw = fetch_url(f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=100")
         sub_data = json.loads(sub_raw.decode("utf-8"))
         if sub_data.get("status") == "OK":
             history = {}
-            for sub in sub_data.get("result", []):
+            for sub in sub_data.get("result", [])[:100]:
                 verdict = sub.get("verdict")
-                ts = sub.get("creationTimeSeconds", 0)
+                ts = int(sub.get("creationTimeSeconds", 0))
                 d_str = get_local_date_str(ts)
                 if verdict == "OK":
                     history[d_str] = history.get(d_str, 0) + 1
                     prob = sub.get("problem", {})
                     prob_name = f"{prob.get('contestId', '')}{prob.get('index', '')} - {prob.get('name', '')}"
                     result["recent"].append({
-                        "title": prob_name,
+                        "title": prob_name[:60],
                         "timestamp": ts,
                         "date": d_str
                     })
@@ -250,20 +288,20 @@ def fetch_codeforces(handle):
                 
             result["streak"] = cur_streak
         else:
-            result["error"] = sub_data.get("comment", "API error")
+            result["error"] = str(sub_data.get("comment", "API error"))[:100]
             
     except Exception as e:
-        result["error"] = str(e)
+        result["error"] = str(e)[:100]
         print(f"Codeforces error: {e}", file=sys.stderr)
         
     return result
 
 # ----------------- GITHUB -----------------
 def fetch_github(username):
-    if not username or not username.strip():
+    username = sanitize_username(username)
+    if not username:
         return {"enabled": False, "status": "no_username", "today_count": 0, "streak": 0, "history": {}}
         
-    username = username.strip()
     result = {
         "platform": "github",
         "username": username,
@@ -284,7 +322,7 @@ def fetch_github(username):
         
         if isinstance(events, list):
             history = {}
-            for ev in events:
+            for ev in events[:60]:
                 ev_type = ev.get("type")
                 created_at_str = ev.get("created_at")
                 if not created_at_str:
@@ -302,7 +340,7 @@ def fetch_github(username):
                     
                     repo_name = ev.get("repo", {}).get("name", "")
                     result["recent"].append({
-                        "title": f"{ev_type.replace('Event', '')} in {repo_name}",
+                        "title": f"{ev_type.replace('Event', '')} in {repo_name}"[:60],
                         "timestamp": ts,
                         "date": d_str
                     })
@@ -323,17 +361,17 @@ def fetch_github(username):
                 
             result["streak"] = cur_streak
         elif isinstance(events, dict) and "message" in events:
-            result["error"] = events.get("message")
+            result["error"] = str(events.get("message"))[:100]
             
     except Exception as e:
-        result["error"] = str(e)
+        result["error"] = str(e)[:100]
         print(f"GitHub error: {e}", file=sys.stderr)
         
     return result
 
 # ----------------- AGGREGATOR & 14-WEEK HEATMAP -----------------
 def aggregate_activity(config):
-    prev_data = load_previous_data() or {}
+    prev_data = secure_read_json(DATA_PATH) or {}
     platforms_cfg = config.get("platforms", {})
     
     platforms_data = {}
@@ -343,9 +381,10 @@ def aggregate_activity(config):
     
     # 1. LeetCode
     lc_cfg = platforms_cfg.get("leetcode", {})
-    if lc_cfg.get("enabled", True) and lc_cfg.get("username"):
+    lc_user = sanitize_username(lc_cfg.get("username", ""))
+    if lc_cfg.get("enabled", True) and lc_user:
         active_platforms_count += 1
-        lc_data = fetch_leetcode(lc_cfg.get("username"))
+        lc_data = fetch_leetcode(lc_user)
         if lc_data.get("error") and prev_data.get("platforms", {}).get("leetcode"):
             cached = prev_data["platforms"]["leetcode"]
             lc_data["history"] = cached.get("history", {})
@@ -356,13 +395,14 @@ def aggregate_activity(config):
         for d, c in lc_data.get("history", {}).items():
             combined_history[d] = combined_history.get(d, 0) + c
     else:
-        platforms_data["leetcode"] = {"enabled": False, "username": lc_cfg.get("username", "")}
+        platforms_data["leetcode"] = {"enabled": False, "username": lc_user}
         
     # 2. Codeforces
     cf_cfg = platforms_cfg.get("codeforces", {})
-    if cf_cfg.get("enabled", True) and cf_cfg.get("handle"):
+    cf_handle = sanitize_username(cf_cfg.get("handle", ""))
+    if cf_cfg.get("enabled", True) and cf_handle:
         active_platforms_count += 1
-        cf_data = fetch_codeforces(cf_cfg.get("handle"))
+        cf_data = fetch_codeforces(cf_handle)
         if cf_data.get("error") and prev_data.get("platforms", {}).get("codeforces"):
             cached = prev_data["platforms"]["codeforces"]
             cf_data["history"] = cached.get("history", {})
@@ -374,13 +414,14 @@ def aggregate_activity(config):
         for d, c in cf_data.get("history", {}).items():
             combined_history[d] = combined_history.get(d, 0) + c
     else:
-        platforms_data["codeforces"] = {"enabled": False, "handle": cf_cfg.get("handle", "")}
+        platforms_data["codeforces"] = {"enabled": False, "handle": cf_handle}
         
     # 3. GitHub
     gh_cfg = platforms_cfg.get("github", {})
-    if gh_cfg.get("enabled", True) and gh_cfg.get("username"):
+    gh_user = sanitize_username(gh_cfg.get("username", ""))
+    if gh_cfg.get("enabled", True) and gh_user:
         active_platforms_count += 1
-        gh_data = fetch_github(gh_cfg.get("username"))
+        gh_data = fetch_github(gh_user)
         if gh_data.get("error") and prev_data.get("platforms", {}).get("github"):
             cached = prev_data["platforms"]["github"]
             gh_data["history"] = cached.get("history", {})
@@ -390,7 +431,7 @@ def aggregate_activity(config):
         for d, c in gh_data.get("history", {}).items():
             combined_history[d] = combined_history.get(d, 0) + c
     else:
-        platforms_data["github"] = {"enabled": False, "username": gh_cfg.get("username", "")}
+        platforms_data["github"] = {"enabled": False, "username": gh_user}
         
     today_obj = date.today()
     today_iso = today_obj.isoformat()
@@ -427,10 +468,9 @@ def aggregate_activity(config):
             
     longest_streak = max(longest_streak, composite_streak)
     
-    # Build 14-Week GitHub Grid (98 days)
-    # Sunday to Saturday columns
+    # Build 14-Week Grid (98 days)
     NUM_WEEKS = 14
-    current_weekday = (today_obj.weekday() + 1) % 7  # 0=Sunday, 1=Monday... 6=Saturday
+    current_weekday = (today_obj.weekday() + 1) % 7
     start_of_current_week = today_obj - timedelta(days=current_weekday)
     grid_start = start_of_current_week - timedelta(weeks=NUM_WEEKS - 1)
     
@@ -497,12 +537,7 @@ def aggregate_activity(config):
         "config": config
     }
     
-    try:
-        with open(DATA_PATH, "w", encoding="utf-8") as f:
-            json.dump(output, f, indent=2)
-    except Exception as e:
-        print(f"Failed to write data: {e}", file=sys.stderr)
-        
+    secure_write_json(DATA_PATH, output)
     return output
 
 if __name__ == "__main__":

@@ -4,6 +4,10 @@
 
 DevTrack is an Omarchy desktop plugin: a Quickshell status bar widget and popout dashboard that monitors your daily coding progress across **LeetCode**, **Codeforces**, and **GitHub**. It runs inside the `omarchy-shell` process you already have, follows your active desktop theme, displays your live streak in the bar, and opens a 14-week contribution heatmap in an interactive popout panel.
 
+<p align="center">
+  <img width="460" alt="DevTrack Preview" src="preview.png" />
+</p>
+
 ---
 
 ## Features

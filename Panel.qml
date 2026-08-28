@@ -35,6 +35,16 @@ Panel {
   property string draftCfUser: ""
   property string draftRemTime: "21:00"
 
+  function sanitizeHandle(str) {
+    if (!str) return ""
+    return String(str).replace(/[^a-zA-Z0-9_\-\.]/g, "").slice(0, 64)
+  }
+
+  function openSafeUrl(url) {
+    if (!url) return
+    Qt.openUrlExternally(url)
+  }
+
   function populateDraft() {
     var p = (root.config && root.config.platforms) ? root.config.platforms : {}
     root.draftLcUser = (p.leetcode && p.leetcode.username) ? p.leetcode.username : ""
@@ -45,24 +55,29 @@ Panel {
   }
 
   function saveSettings() {
+    var lcClean = sanitizeHandle(root.draftLcUser)
+    var cfClean = sanitizeHandle(root.draftCfUser)
+    var ghClean = sanitizeHandle(root.draftGhUser)
+    var remClean = root.draftRemTime.trim() || "21:00"
+
     var payload = {
       "platforms": {
         "leetcode": {
-          "enabled": root.draftLcUser.trim().length > 0,
-          "username": root.draftLcUser.trim()
+          "enabled": lcClean.length > 0,
+          "username": lcClean
         },
         "codeforces": {
-          "enabled": root.draftCfUser.trim().length > 0,
-          "handle": root.draftCfUser.trim()
+          "enabled": cfClean.length > 0,
+          "handle": cfClean
         },
         "github": {
-          "enabled": root.draftGhUser.trim().length > 0,
-          "username": root.draftGhUser.trim()
+          "enabled": ghClean.length > 0,
+          "username": ghClean
         }
       },
       "reminder": {
         "enabled": true,
-        "time": root.draftRemTime.trim() || "21:00"
+        "time": remClean
       }
     }
     if (root.service) {
@@ -105,8 +120,8 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(390))
-    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight, Style.space(540))
+    contentWidth: panel.fittedContentWidth(Style.space(400))
+    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight, Style.space(560))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -272,14 +287,17 @@ Panel {
             // HERO STREAK STATUS BANNER
             Rectangle {
               width: parent.width
-              height: Style.space(62)
+              implicitHeight: heroRow.implicitHeight + Style.space(18)
               radius: Style.space(10)
               color: Color.card || Qt.rgba(1, 1, 1, 0.05)
               border.color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.4) : Qt.rgba(0.96, 0.62, 0.04, 0.3)
               border.width: 1
 
               RowLayout {
-                anchors.fill: parent
+                id: heroRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 anchors.margins: Style.space(10)
                 spacing: Style.space(10)
 
@@ -287,6 +305,7 @@ Panel {
                 Rectangle {
                   Layout.preferredWidth: Style.space(42)
                   Layout.preferredHeight: Style.space(42)
+                  Layout.alignment: Qt.AlignVCenter
                   radius: Style.space(8)
                   color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.2) : Qt.rgba(0.96, 0.62, 0.04, 0.18)
 
@@ -335,33 +354,38 @@ Panel {
                   Text {
                     text: root.doneToday 
                       ? (root.totalToday + " activities logged today · Streak preserved")
-                      : ("Best: " + root.longestStreak + "d · Reminder at " + (root.config.reminder ? root.config.reminder.time : "21:00"))
+                      : ("Reminder at " + (root.config.reminder ? root.config.reminder.time : "21:00") + " · Solve to keep streak")
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.caption
                     color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.65)
                   }
                 }
 
-                // Stats Column
+                // Right Stats Column (Fixed geometry & unclipped)
                 Column {
-                  spacing: Style.space(3)
+                  Layout.preferredWidth: Style.space(76)
+                  Layout.alignment: Qt.AlignVCenter
+                  spacing: Style.space(4)
+
                   Row {
                     spacing: Style.space(4)
-                    Text { text: "󰓥"; font.pixelSize: Style.space(10); color: "#F59E0B" }
+                    Text { text: "󰓥"; font.pixelSize: Style.space(11); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
                       text: root.longestStreak + "d best"
                       font.pixelSize: Style.space(10)
-                      font.weight: Font.DemiBold
-                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.8)
+                      font.weight: Font.Bold
+                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.85)
+                      anchors.verticalCenter: parent.verticalCenter
                     }
                   }
                   Row {
                     spacing: Style.space(4)
-                    Text { text: "󰃭"; font.pixelSize: Style.space(9); color: "#60A5FA" }
+                    Text { text: "󰃭"; font.pixelSize: Style.space(10); color: "#60A5FA"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                      text: root.totalActive90 + "d (90d)"
+                      text: root.totalActive90 + "d in 90d"
                       font.pixelSize: Style.space(9)
-                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.55)
+                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.6)
+                      anchors.verticalCenter: parent.verticalCenter
                     }
                   }
                 }
@@ -405,20 +429,21 @@ Panel {
 
                 // Grid Row (Day labels + 14 Week columns)
                 Row {
-                  spacing: Style.space(5)
+                  spacing: Style.space(6)
                   anchors.horizontalCenter: parent.horizontalCenter
 
-                  // Day of week labels (M, W, F)
+                  // Day of week labels perfectly matching cell height
                   Column {
                     spacing: Style.space(4)
                     anchors.verticalCenter: parent.verticalCenter
-                    Text { text: "S"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.25) }
-                    Text { text: "M"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.6) }
-                    Text { text: "T"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.25) }
-                    Text { text: "W"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.6) }
-                    Text { text: "T"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.25) }
-                    Text { text: "F"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.6) }
-                    Text { text: "S"; font.pixelSize: Style.space(9); font.weight: Font.DemiBold; color: Qt.rgba(1,1,1,0.25) }
+
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "S"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "M"; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "T"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "W"; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "T"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "F"; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "S"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
                   }
 
                   // 14 Week Columns
@@ -511,11 +536,19 @@ Panel {
               height: Style.space(48)
               radius: Style.space(8)
               color: Color.card || Qt.rgba(1, 1, 1, 0.04)
-              border.color: Qt.rgba(1, 1, 1, 0.08)
+              border.color: lcCardMouse.containsMouse ? Qt.rgba(1, 0.63, 0.09, 0.3) : Qt.rgba(1, 1, 1, 0.08)
               border.width: 1
 
               readonly property var lc: (root.platforms && root.platforms.leetcode) ? root.platforms.leetcode : ({})
               readonly property bool hasUser: lc.username !== undefined && String(lc.username).length > 0
+
+              MouseArea {
+                id: lcCardMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: lcCard.hasUser ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: if (lcCard.hasUser) root.openSafeUrl("https://leetcode.com/u/" + encodeURIComponent(lcCard.lc.username))
+              }
 
               RowLayout {
                 anchors.fill: parent
@@ -566,22 +599,14 @@ Panel {
                   Layout.preferredWidth: Style.space(26)
                   Layout.preferredHeight: Style.space(26)
                   radius: Style.space(4)
-                  color: lcLinkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent"
+                  color: lcCardMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent"
                   visible: lcCard.hasUser
 
                   Text {
                     anchors.centerIn: parent
                     text: "󰌹"
                     font.pixelSize: Style.font.caption
-                    color: lcLinkMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
-                  }
-
-                  MouseArea {
-                    id: lcLinkMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: if (root.bar && lcCard.hasUser) root.bar.run("xdg-open https://leetcode.com/u/" + lcCard.lc.username)
+                    color: lcCardMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
                   }
                 }
               }
@@ -594,11 +619,19 @@ Panel {
               height: Style.space(48)
               radius: Style.space(8)
               color: Color.card || Qt.rgba(1, 1, 1, 0.04)
-              border.color: Qt.rgba(1, 1, 1, 0.08)
+              border.color: cfCardMouse.containsMouse ? Qt.rgba(0.23, 0.51, 0.96, 0.3) : Qt.rgba(1, 1, 1, 0.08)
               border.width: 1
 
               readonly property var cf: (root.platforms && root.platforms.codeforces) ? root.platforms.codeforces : ({})
               readonly property bool hasUser: cf.username !== undefined && String(cf.username).length > 0
+
+              MouseArea {
+                id: cfCardMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: cfCard.hasUser ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: if (cfCard.hasUser) root.openSafeUrl("https://codeforces.com/profile/" + encodeURIComponent(cfCard.cf.username))
+              }
 
               RowLayout {
                 anchors.fill: parent
@@ -649,22 +682,14 @@ Panel {
                   Layout.preferredWidth: Style.space(26)
                   Layout.preferredHeight: Style.space(26)
                   radius: Style.space(4)
-                  color: cfLinkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent"
+                  color: cfCardMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent"
                   visible: cfCard.hasUser
 
                   Text {
                     anchors.centerIn: parent
                     text: "󰌹"
                     font.pixelSize: Style.font.caption
-                    color: cfLinkMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
-                  }
-
-                  MouseArea {
-                    id: cfLinkMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: if (root.bar && cfCard.hasUser) root.bar.run("xdg-open https://codeforces.com/profile/" + cfCard.cf.username)
+                    color: cfCardMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
                   }
                 }
               }
@@ -677,11 +702,19 @@ Panel {
               height: Style.space(48)
               radius: Style.space(8)
               color: Color.card || Qt.rgba(1, 1, 1, 0.04)
-              border.color: Qt.rgba(1, 1, 1, 0.08)
+              border.color: ghCardMouse.containsMouse ? Qt.rgba(0.06, 0.72, 0.5, 0.3) : Qt.rgba(1, 1, 1, 0.08)
               border.width: 1
 
               readonly property var gh: (root.platforms && root.platforms.github) ? root.platforms.github : ({})
               readonly property bool hasUser: gh.username !== undefined && String(gh.username).length > 0
+
+              MouseArea {
+                id: ghCardMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: ghCard.hasUser ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: if (ghCard.hasUser) root.openSafeUrl("https://github.com/" + encodeURIComponent(ghCard.gh.username))
+              }
 
               RowLayout {
                 anchors.fill: parent
@@ -732,22 +765,14 @@ Panel {
                   Layout.preferredWidth: Style.space(26)
                   Layout.preferredHeight: Style.space(26)
                   radius: Style.space(4)
-                  color: ghLinkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent"
+                  color: ghCardMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent"
                   visible: ghCard.hasUser
 
                   Text {
                     anchors.centerIn: parent
                     text: "󰌹"
                     font.pixelSize: Style.font.caption
-                    color: ghLinkMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
-                  }
-
-                  MouseArea {
-                    id: ghLinkMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: if (root.bar && ghCard.hasUser) root.bar.run("xdg-open https://github.com/" + ghCard.gh.username)
+                    color: ghCardMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
                   }
                 }
               }

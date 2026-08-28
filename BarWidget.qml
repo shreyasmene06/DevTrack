@@ -54,16 +54,6 @@ BarWidget {
     }
   }
 
-  IpcHandler {
-    target: "devtrack.streak"
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function show(): void { root.open() }
-    function hide(): void { root.close() }
-    function toggle(): void { root.toggle() }
-    function refresh(): void { if (root.service) root.service.refresh() }
-  }
-
   WidgetButton {
     id: button
     anchors.fill: parent
