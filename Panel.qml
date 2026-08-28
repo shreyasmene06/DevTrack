@@ -190,7 +190,7 @@ Panel {
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(8)
 
-              // Refresh Button
+              // Refresh Button with Animation
               Rectangle {
                 width: Style.space(26)
                 height: Style.space(26)
@@ -198,11 +198,21 @@ Panel {
                 color: refreshMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
 
                 Text {
+                  id: refreshIcon
                   anchors.centerIn: parent
                   text: "󰑓"
                   color: (root.service && root.service.isRefreshing) ? (Color.accent || "#38BDF8") : root.contentForeground
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.body
+                  transformOrigin: Item.Center
+
+                  RotationAnimation on rotation {
+                    running: root.service && root.service.isRefreshing
+                    from: 0
+                    to: 360
+                    loops: Animation.Infinite
+                    duration: 750
+                  }
                 }
 
                 MouseArea {
@@ -210,7 +220,11 @@ Panel {
                   anchors.fill: parent
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.service) root.service.refresh()
+                  onClicked: {
+                    if (root.service) {
+                      root.service.refresh()
+                    }
+                  }
                 }
               }
 

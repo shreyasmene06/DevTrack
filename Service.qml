@@ -32,6 +32,8 @@ Item {
   // Reactive state
   property var trackerData: ({})
   property int streakCount: (trackerData && trackerData.composite_streak !== undefined) ? trackerData.composite_streak : 0
+  property int longestStreak: (trackerData && trackerData.longest_streak !== undefined) ? trackerData.longest_streak : 0
+  property int totalActive90: (trackerData && trackerData.total_active_days_90 !== undefined) ? trackerData.total_active_days_90 : 0
   property bool isDoneToday: (trackerData && trackerData.is_done_today === true)
   property int totalToday: (trackerData && trackerData.total_today !== undefined) ? trackerData.total_today : 0
   property var platforms: (trackerData && trackerData.platforms) ? trackerData.platforms : ({})
@@ -56,7 +58,7 @@ Item {
     if (!str || str.length === 0) return
     try {
       var parsed = JSON.parse(str)
-      if (parsed) {
+      if (parsed && typeof parsed === "object") {
         root.trackerData = parsed
         root.ready = true
       }
@@ -66,8 +68,9 @@ Item {
   }
 
   function refresh() {
-    if (fetchProc.running) return
     root.isRefreshing = true
+    fetchProc.running = false
+    fetchProc.command = ["python3", root.fetcherPath]
     fetchProc.running = true
   }
 
@@ -77,8 +80,22 @@ Item {
   }
 
   function saveConfig(cfg) {
+    saveProc.running = false
     saveProc.command = ["python3", root.saveConfigPath, JSON.stringify(cfg)]
     saveProc.running = true
+  }
+
+  // Instant Cache Loader on Startup
+  Process {
+    id: initProc
+    command: ["cat", root.dataPath]
+    running: true
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        if (text) root.parseData(text)
+      }
+    }
   }
 
   // Main Activity Fetcher Process
@@ -92,7 +109,7 @@ Item {
         if (text) root.parseData(text)
       }
     }
-    onExited: {
+    onExited: function(exitCode, exitStatus) {
       root.isRefreshing = false
       root.checkReminder()
     }
