@@ -1,58 +1,99 @@
-# DevTrack: Omarchy Coding Activity & Streak Tracker
+# DevTrack
 
-A native **Omarchy Quattro** shell plugin for tracking daily coding activity and streaks across **LeetCode**, **Codeforces**, and **GitHub**. It displays your live streak directly in your Omarchy top bar, renders a 14-week contribution heatmap in an interactive popout dashboard, and provides automated evening reminders if your daily streak is pending.
+**Your coding streaks and activity as a native Omarchy bar widget — not a browser tab.**
+
+DevTrack is an Omarchy desktop plugin: a Quickshell status bar widget and popout dashboard that monitors your daily coding progress across **LeetCode**, **Codeforces**, and **GitHub**. It runs inside the `omarchy-shell` process you already have, follows your active desktop theme, displays your live streak in the bar, and opens a 14-week contribution heatmap in an interactive popout panel.
 
 ---
 
 ## Features
 
-- **Top Bar Status Widget**: Displays your composite streak on your Omarchy bar with real-time indicators for today's active completion status.
-- **Multi-Platform Support**:
-  - **LeetCode**: Problems solved today, acceptance counts, total solved, and streak.
-  - **Codeforces**: Accepted submissions today, current rating, rank badge, and streak.
+- **Designed for Omarchy.** Follows your active Omarchy theme colors and fonts, uses standard Nerd Font glyphs, and integrates directly into the status bar and panel overlay system.
+- **Multi-Platform Activity Tracking.**
+  - **LeetCode**: Problems solved today, acceptance statistics, total solved, and streak count.
+  - **Codeforces**: Accepted solutions today, current rating, rank badge, and streak.
   - **GitHub**: Daily commit/push/PR activity and public contribution streak.
-- **14-Week Contribution Heatmap**: High-density activity matrix with hover tooltips displaying exact dates and contribution counts.
-- **Automated Evening Reminders**: Proactive desktop notifications at your configured reminder hour (default 21:00) if no activity has been logged.
-- **In-Panel Settings Interface**: Configure your usernames and reminder preferences directly from the popout dashboard.
-- **Background Synchronization**: Headless synchronization service running every 15 minutes with local disk caching (`~/.config/omarchy/devtrack/data.json`).
+- **14-Week Contribution Heatmap.** A 98-day activity matrix with hover tooltips displaying exact dates, contribution counts, and 90-day active statistics.
+- **Proactive Evening Reminders.** Automated desktop notifications via `notify-send` at your configured reminder time (default `21:00`) if no activity has been recorded.
+- **In-Panel Settings Interface.** Configure your LeetCode, Codeforces, and GitHub handles and reminder time directly from the popout panel header.
+- **Headless Background Service.** Automatic background synchronization every 15 minutes with local disk caching in `~/.config/omarchy/devtrack/data.json`.
 
 ---
 
-## Installation
+## What It Is
 
-Clone or link the repository to your Omarchy plugins directory:
+Two interconnected parts in one plugin:
+
+- A **live streak indicator** in the top bar (`󰈸 2d`), which updates automatically whether or not the popout panel is open.
+- An **interactive popout dashboard** with hero streak statistics, a full 14-week contribution heatmap, platform status cards with quick profile links (`󰌹`), and an in-place configuration editor.
+
+---
+
+## Add It to Omarchy
+
+Install directly from the git repository:
 
 ```bash
-# Clone into plugins directory
-git clone https://github.com/shreyasmene06/DevTrack.git ~/.config/omarchy/plugins/devtrack.streak
+omarchy plugin add https://github.com/shreyasmene06/DevTrack.git --enable
+```
 
-# Enable in Omarchy
+Then click the flame icon in the top bar to open the dashboard.
+
+### Optional Keyboard Shortcut
+
+To toggle the panel from your keyboard, add this binding to `~/.config/hypr/bindings.lua`:
+
+```lua
+o.bind("SUPER + SHIFT + D", "DevTrack", "omarchy-shell devtrack.streak toggle")
+```
+
+---
+
+## Removal & Disabling
+
+To temporarily disable the plugin:
+
+```bash
+omarchy plugin disable devtrack.streak
+```
+
+To re-enable it:
+
+```bash
 omarchy plugin enable devtrack.streak
+```
 
-# Rescan shell plugins
-omarchy-shell shell rescanPlugins
+To completely remove the plugin from Omarchy:
+
+```bash
+omarchy plugin remove devtrack.streak --yes
 ```
 
 ---
 
 ## Commands & IPC
 
+You can interact with DevTrack from scripts or keybindings via `omarchy-shell`:
+
 ```bash
-# Open or close the details panel
+# Toggle the popout dashboard
 omarchy-shell devtrack.streak toggle
+
+# Open the popout dashboard
+omarchy-shell devtrack.streak open
+
+# Close the popout dashboard
+omarchy-shell devtrack.streak close
 
 # Trigger an immediate background synchronization
 omarchy-shell devtrack.streak refresh
-
-# Validate plugin manifest
-omarchy plugin validate /path/to/DevTrack
 ```
 
 ---
 
 ## Configuration
 
-You can configure your platform usernames through the in-panel settings interface (click the settings icon in the panel header) or by modifying `~/.config/omarchy/devtrack/config.json`:
+You can configure your usernames directly through the settings interface in the panel (click the 󰒓 settings button in the panel header) or manually by editing `~/.config/omarchy/devtrack/config.json`:
 
 ```json
 {
@@ -80,6 +121,14 @@ You can configure your platform usernames through the in-panel settings interfac
   }
 }
 ```
+
+---
+
+## Requirements
+
+- **Omarchy Quattro / Quickshell**
+- **Python 3** (for background API polling and notifications)
+- **libnotify / notify-send** (included in Omarchy for desktop alerts)
 
 ---
 
