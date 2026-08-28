@@ -120,8 +120,8 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(400))
-    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight, Style.space(560))
+    contentWidth: panel.fittedContentWidth(Style.space(420))
+    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight, Style.space(570))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -284,107 +284,119 @@ Panel {
             spacing: Style.space(12)
             visible: root.viewMode === 0
 
-            // HERO STREAK STATUS BANNER
+            // HERO STREAK STATUS BANNER (Clean Two-Row Layout, No Clipping)
             Rectangle {
               width: parent.width
-              implicitHeight: heroRow.implicitHeight + Style.space(18)
+              implicitHeight: heroCol.implicitHeight + Style.space(18)
               radius: Style.space(10)
               color: Color.card || Qt.rgba(1, 1, 1, 0.05)
               border.color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.4) : Qt.rgba(0.96, 0.62, 0.04, 0.3)
               border.width: 1
 
-              RowLayout {
-                id: heroRow
+              Column {
+                id: heroCol
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.margins: Style.space(10)
-                spacing: Style.space(10)
+                spacing: Style.space(8)
 
-                // Leading Flame Icon Badge
-                Rectangle {
-                  Layout.preferredWidth: Style.space(42)
-                  Layout.preferredHeight: Style.space(42)
-                  Layout.alignment: Qt.AlignVCenter
-                  radius: Style.space(8)
-                  color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.2) : Qt.rgba(0.96, 0.62, 0.04, 0.18)
+                // Top row: Flame badge + Streak title + Status pill
+                RowLayout {
+                  width: parent.width
+                  spacing: Style.space(10)
 
-                  Text {
-                    anchors.centerIn: parent
-                    text: "󰈸"
-                    font.family: root.contentFontFamily
-                    font.pixelSize: Style.space(26)
-                    color: root.doneToday ? "#10B981" : (root.streak > 0 ? "#F59E0B" : (Color.accent || "#38BDF8"))
-                  }
-                }
+                  Rectangle {
+                    Layout.preferredWidth: Style.space(38)
+                    Layout.preferredHeight: Style.space(38)
+                    radius: Style.space(8)
+                    color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.2) : Qt.rgba(0.96, 0.62, 0.04, 0.18)
 
-                // Main Info
-                ColumnLayout {
-                  Layout.fillWidth: true
-                  spacing: Style.space(2)
-
-                  RowLayout {
-                    spacing: Style.space(6)
                     Text {
-                      text: root.streak > 0 ? (root.streak + " Days Streak") : "0 Day Streak"
+                      anchors.centerIn: parent
+                      text: "󰈸"
                       font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.title
-                      font.weight: Font.Bold
-                      color: root.contentForeground
+                      font.pixelSize: Style.space(24)
+                      color: root.doneToday ? "#10B981" : (root.streak > 0 ? "#F59E0B" : (Color.accent || "#38BDF8"))
                     }
+                  }
 
-                    Rectangle {
-                      radius: Style.space(4)
-                      color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.25) : Qt.rgba(0.96, 0.62, 0.04, 0.22)
-                      Layout.preferredHeight: Style.space(18)
-                      Layout.preferredWidth: heroBadge.implicitWidth + Style.space(10)
+                  ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Style.space(2)
 
+                    RowLayout {
+                      spacing: Style.space(6)
                       Text {
-                        id: heroBadge
-                        anchors.centerIn: parent
-                        text: root.doneToday ? "✓ Active Today" : "Pending"
+                        text: root.streak > 0 ? (root.streak + " Days Streak") : "0 Day Streak"
                         font.family: root.contentFontFamily
-                        font.pixelSize: Style.space(10)
+                        font.pixelSize: Style.font.title
                         font.weight: Font.Bold
-                        color: root.doneToday ? "#10B981" : "#F59E0B"
+                        color: root.contentForeground
+                      }
+
+                      Rectangle {
+                        radius: Style.space(4)
+                        color: root.doneToday ? Qt.rgba(0.06, 0.72, 0.5, 0.25) : Qt.rgba(0.96, 0.62, 0.04, 0.22)
+                        Layout.preferredHeight: Style.space(18)
+                        Layout.preferredWidth: heroBadge.implicitWidth + Style.space(10)
+
+                        Text {
+                          id: heroBadge
+                          anchors.centerIn: parent
+                          text: root.doneToday ? "✓ Active Today" : "Pending"
+                          font.family: root.contentFontFamily
+                          font.pixelSize: Style.space(10)
+                          font.weight: Font.Bold
+                          color: root.doneToday ? "#10B981" : "#F59E0B"
+                        }
                       }
                     }
-                  }
 
-                  Text {
-                    text: root.doneToday 
-                      ? (root.totalToday + " activities logged today · Streak preserved")
-                      : ("Reminder at " + (root.config.reminder ? root.config.reminder.time : "21:00") + " · Solve to keep streak")
-                    font.family: root.contentFontFamily
-                    font.pixelSize: Style.font.caption
-                    color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.65)
+                    Text {
+                      text: root.doneToday 
+                        ? (root.totalToday + " activities logged today · Streak preserved")
+                        : ("Reminder at " + (root.config.reminder ? root.config.reminder.time : "21:00") + " · Solve to keep streak")
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.65)
+                    }
                   }
                 }
 
-                // Right Stats Column (Fixed geometry & unclipped)
-                Column {
-                  Layout.preferredWidth: Style.space(76)
-                  Layout.alignment: Qt.AlignVCenter
-                  spacing: Style.space(4)
+                // Subtle inner separator
+                Rectangle {
+                  width: parent.width
+                  height: 1
+                  color: Qt.rgba(1, 1, 1, 0.06)
+                }
+
+                // Bottom row: Best streak & 90-day active days
+                RowLayout {
+                  width: parent.width
 
                   Row {
-                    spacing: Style.space(4)
-                    Text { text: "󰓥"; font.pixelSize: Style.space(11); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
+                    spacing: Style.space(5)
+                    Text { text: "󰓥"; font.pixelSize: Style.space(12); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                      text: root.longestStreak + "d best"
-                      font.pixelSize: Style.space(10)
-                      font.weight: Font.Bold
-                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.85)
+                      text: "Best Record: " + root.longestStreak + " days";
+                      font.pixelSize: Style.space(10);
+                      font.weight: Font.DemiBold;
+                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.75);
                       anchors.verticalCenter: parent.verticalCenter
                     }
                   }
+
+                  Item { Layout.fillWidth: true }
+
                   Row {
-                    spacing: Style.space(4)
-                    Text { text: "󰃭"; font.pixelSize: Style.space(10); color: "#60A5FA"; anchors.verticalCenter: parent.verticalCenter }
+                    spacing: Style.space(5)
+                    Text { text: "󰃭"; font.pixelSize: Style.space(12); color: "#60A5FA"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
-                      text: root.totalActive90 + "d in 90d"
-                      font.pixelSize: Style.space(9)
-                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.6)
+                      text: root.totalActive90 + " active days in 90d";
+                      font.pixelSize: Style.space(10);
+                      font.weight: Font.DemiBold;
+                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.75);
                       anchors.verticalCenter: parent.verticalCenter
                     }
                   }
