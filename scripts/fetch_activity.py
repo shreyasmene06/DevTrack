@@ -12,6 +12,7 @@ import json
 import time
 import re
 import stat
+import secrets
 import tempfile
 import urllib.request
 import urllib.error
@@ -63,9 +64,9 @@ def sanitize_username(u):
 def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
     """
     Securely reads and parses a JSON file without TOCTOU symlink races or unbounded reads.
-    Opens the file with O_NOFOLLOW and reads max_bytes + 1 to strictly reject oversized files.
+    Opens the file with O_NOFOLLOW and O_NONBLOCK, checking S_ISREG and UID, and reads max_bytes + 1.
     """
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
         fd = os.open(path, flags)
     except (OSError, IOError):
@@ -86,59 +87,80 @@ def secure_read_json(path, max_bytes=MAX_FILE_BYTES):
         with open(fd, "r", encoding="utf-8", closefd=True) as f:
             raw = f.read(max_bytes + 1)
             if len(raw) > max_bytes:
-                # File exceeds maximum allowed size; reject completely
                 return None
             if not raw.strip():
                 return None
             return json.loads(raw)
-    except Exception as e:
+    except Exception:
         return None
 
 def secure_write_json(path, data):
     """
     Securely and atomically writes JSON data to path.
-    Verifies directory ownership and O_NOFOLLOW to avoid symlink redirection.
+    Verifies directory ownership and O_NOFOLLOW, keeping a verified parent-directory descriptor
+    open to perform temporary creation, replacement, and cleanup descriptor-relatively
+    without re-resolving the pathname.
     """
     dir_path = os.path.dirname(os.path.abspath(path))
+    filename = os.path.basename(path)
     
     try:
         os.makedirs(dir_path, mode=0o700, exist_ok=True)
     except (OSError, IOError):
         return False
         
+    dir_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
     try:
-        dir_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
         dir_fd = os.open(dir_path, dir_flags)
-        try:
-            st = os.fstat(dir_fd)
-            if hasattr(os, "getuid") and st.st_uid != os.getuid():
-                return False
-        finally:
-            os.close(dir_fd)
     except (OSError, IOError):
         return False
-
+        
+    tmp_filename = None
     try:
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, prefix=".tmp_devtrack_")
-    except (OSError, IOError):
-        return False
-
-    try:
-        with open(tmp_fd, "w", encoding="utf-8", closefd=True) as f:
-            json.dump(data, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.chmod(tmp_path, 0o600)
-        os.replace(tmp_path, path)
-        return True
-    except Exception as e:
-        if os.path.exists(tmp_path):
+        st = os.fstat(dir_fd)
+        if not stat.S_ISDIR(st.st_mode):
+            return False
+        if hasattr(os, "getuid") and st.st_uid != os.getuid():
+            return False
+            
+        # Create temporary file descriptor-relatively in verified directory
+        for _ in range(10):
+            candidate = f".tmp_{filename}_{secrets.token_hex(8)}"
             try:
-                os.unlink(tmp_path)
+                tmp_flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+                tmp_fd = os.open(candidate, tmp_flags, 0o600, dir_fd=dir_fd)
+                tmp_filename = candidate
+                break
+            except FileExistsError:
+                continue
+        else:
+            return False
+            
+        try:
+            with open(tmp_fd, "w", encoding="utf-8", closefd=True) as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+        except Exception:
+            try:
+                os.unlink(tmp_filename, dir_fd=dir_fd)
             except OSError:
                 pass
-        print(f"Error saving {path}: {e}", file=sys.stderr)
+            return False
+
+        # Atomically replace target file descriptor-relatively
+        os.replace(tmp_filename, filename, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        tmp_filename = None
+        return True
+    except Exception as e:
+        if tmp_filename is not None:
+            try:
+                os.unlink(tmp_filename, dir_fd=dir_fd)
+            except OSError:
+                pass
         return False
+    finally:
+        os.close(dir_fd)
 
 def load_config():
     cfg = secure_read_json(CONFIG_PATH)
@@ -588,6 +610,18 @@ def aggregate_activity(config):
     return output
 
 if __name__ == "__main__":
+    if "--cache" in sys.argv or "--read-cache" in sys.argv:
+        cached = secure_read_json(DATA_PATH)
+        if cached:
+            out = json.dumps(cached)
+            if len(out) <= MAX_FILE_BYTES:
+                sys.stdout.write(out)
+                sys.stdout.flush()
+        sys.exit(0)
+
     cfg = load_config()
     res = aggregate_activity(cfg)
-    print(json.dumps(res))
+    out = json.dumps(res)
+    if len(out) <= MAX_FILE_BYTES:
+        sys.stdout.write(out)
+        sys.stdout.flush()

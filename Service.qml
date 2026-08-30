@@ -55,7 +55,7 @@ Item {
   function parseData(jsonText) {
     if (!jsonText) return
     var str = String(jsonText).trim()
-    if (!str || str.length === 0) return
+    if (!str || str.length === 0 || str.length > 1048576) return
     try {
       var parsed = JSON.parse(str)
       if (parsed && typeof parsed === "object") {
@@ -88,7 +88,7 @@ Item {
   // Instant Cache Loader on Startup
   Process {
     id: initProc
-    command: ["cat", root.dataPath]
+    command: ["python3", root.fetcherPath, "--cache"]
     running: true
     stdout: StdioCollector {
       waitForEnd: true
