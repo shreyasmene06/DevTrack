@@ -158,6 +158,7 @@ Panel {
               Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "DEVTRACK"
+                textFormat: Text.PlainText
                 color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.body
@@ -176,6 +177,7 @@ Panel {
                   id: modeBadgeText
                   anchors.centerIn: parent
                   text: root.viewMode === 1 ? "SETTINGS" : "STREAK"
+                  textFormat: Text.PlainText
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.space(9)
                   font.weight: Font.Bold
@@ -201,6 +203,7 @@ Panel {
                   id: refreshIcon
                   anchors.centerIn: parent
                   text: "󰑓"
+                  textFormat: Text.PlainText
                   color: (root.service && root.service.isRefreshing) ? (Color.accent || "#38BDF8") : root.contentForeground
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.body
@@ -238,6 +241,7 @@ Panel {
                 Text {
                   anchors.centerIn: parent
                   text: root.viewMode === 1 ? "󰅖" : "󰒓"
+                  textFormat: Text.PlainText
                   color: root.viewMode === 1 ? (Color.accent || "#38BDF8") : root.contentForeground
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.body
@@ -269,6 +273,7 @@ Panel {
                 Text {
                   anchors.centerIn: parent
                   text: "✕"
+                  textFormat: Text.PlainText
                   color: closeMouse.containsMouse ? "#EF4444" : root.contentForeground
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
@@ -329,6 +334,7 @@ Panel {
                     Text {
                       anchors.centerIn: parent
                       text: "󰈸"
+                      textFormat: Text.PlainText
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.space(24)
                       color: root.doneToday ? "#10B981" : (root.streak > 0 ? "#F59E0B" : (Color.accent || "#38BDF8"))
@@ -343,6 +349,7 @@ Panel {
                       spacing: Style.space(6)
                       Text {
                         text: root.streak > 0 ? (root.streak + " Days Streak") : "0 Day Streak"
+                        textFormat: Text.PlainText
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.title
                         font.weight: Font.Bold
@@ -359,6 +366,7 @@ Panel {
                           id: heroBadge
                           anchors.centerIn: parent
                           text: root.doneToday ? "✓ Active Today" : "Pending"
+                          textFormat: Text.PlainText
                           font.family: root.contentFontFamily
                           font.pixelSize: Style.space(10)
                           font.weight: Font.Bold
@@ -371,6 +379,7 @@ Panel {
                       text: root.doneToday 
                         ? (root.totalToday + " activities logged today · Streak preserved")
                         : ("Reminder at " + (root.config.reminder ? root.config.reminder.time : "21:00") + " · Solve to keep streak")
+                      textFormat: Text.PlainText
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
                       color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.65)
@@ -391,9 +400,10 @@ Panel {
 
                   Row {
                     spacing: Style.space(5)
-                    Text { text: "󰓥"; font.pixelSize: Style.space(12); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: "󰓥"; textFormat: Text.PlainText; font.pixelSize: Style.space(12); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
                       text: "Best Record: " + root.longestStreak + " days";
+                      textFormat: Text.PlainText
                       font.pixelSize: Style.space(10);
                       font.weight: Font.DemiBold;
                       color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.75);
@@ -405,9 +415,10 @@ Panel {
 
                   Row {
                     spacing: Style.space(5)
-                    Text { text: "󰃭"; font.pixelSize: Style.space(12); color: "#60A5FA"; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: "󰃭"; textFormat: Text.PlainText; font.pixelSize: Style.space(12); color: "#60A5FA"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
                       text: root.totalActive90 + " active days in 90d";
+                      textFormat: Text.PlainText
                       font.pixelSize: Style.space(10);
                       font.weight: Font.DemiBold;
                       color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.75);
@@ -439,6 +450,7 @@ Panel {
                   width: parent.width
                   Text {
                     text: "Contribution Heatmap"
+                    textFormat: Text.PlainText
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.bodySmall
                     font.weight: Font.Bold
@@ -447,6 +459,7 @@ Panel {
                   Item { Layout.fillWidth: true }
                   Text {
                     text: root.totalToday + " today · 14 Weeks"
+                    textFormat: Text.PlainText
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.caption
                     color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.5)
@@ -463,13 +476,13 @@ Panel {
                     spacing: Style.space(4)
                     anchors.verticalCenter: parent.verticalCenter
 
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "S"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "M"; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "T"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "W"; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "T"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "F"; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
-                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "S"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "S"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "M"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "T"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "W"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "T"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "F"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); font.weight: Font.Bold; color: Qt.rgba(1,1,1,0.65) } }
+                    Item { width: Style.space(10); height: Style.space(16); Text { anchors.centerIn: parent; text: "S"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.25) } }
                   }
 
                   // 14 Week Columns
@@ -525,6 +538,7 @@ Panel {
 
                   Text {
                     text: root.totalActive90 + " active days in 90d"
+                    textFormat: Text.PlainText
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.space(10)
                     color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.5)
@@ -534,13 +548,13 @@ Panel {
 
                   Row {
                     spacing: Style.space(3)
-                    Text { text: "Less"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.4); anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: "Less"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.4); anchors.verticalCenter: parent.verticalCenter }
                     Rectangle { width: Style.space(9); height: Style.space(9); radius: 2; color: Qt.rgba(1,1,1,0.07) }
                     Rectangle { width: Style.space(9); height: Style.space(9); radius: 2; color: "#0E4429" }
                     Rectangle { width: Style.space(9); height: Style.space(9); radius: 2; color: "#006D32" }
                     Rectangle { width: Style.space(9); height: Style.space(9); radius: 2; color: "#26A641" }
                     Rectangle { width: Style.space(9); height: Style.space(9); radius: 2; color: "#39D353" }
-                    Text { text: "More"; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.4); anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: "More"; textFormat: Text.PlainText; font.pixelSize: Style.space(9); color: Qt.rgba(1,1,1,0.4); anchors.verticalCenter: parent.verticalCenter }
                   }
                 }
               }
@@ -549,6 +563,7 @@ Panel {
             // PLATFORMS SECTION TITLE
             Text {
               text: "Connected Platforms"
+              textFormat: Text.PlainText
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.bodySmall
               font.weight: Font.Bold
@@ -591,6 +606,7 @@ Panel {
                   Text {
                     anchors.centerIn: parent
                     text: "󰘐"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.space(18)
                     color: "#FFA116"
                   }
@@ -604,6 +620,7 @@ Panel {
                     spacing: Style.space(6)
                     Text {
                       text: lcCard.hasUser ? ("LeetCode · @" + lcCard.lc.username) : "LeetCode · Not Configured"
+                      textFormat: Text.PlainText
                       font.pixelSize: Style.font.caption
                       font.weight: Font.Bold
                       color: root.contentForeground
@@ -616,6 +633,7 @@ Panel {
                           ? ("✓ " + lcCard.lc.today_count + " solved today · Streak: " + (lcCard.lc.streak || 0) + "d")
                           : ("0 solved today · Total: " + (lcCard.lc.total_solved || 0) + " solved · Streak: " + (lcCard.lc.streak || 0) + "d"))
                       : "Click ⚙ to configure handle"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.space(10)
                     color: (lcCard.lc.today_count > 0) ? "#10B981" : Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.55)
                   }
@@ -631,6 +649,7 @@ Panel {
                   Text {
                     anchors.centerIn: parent
                     text: "󰌹"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.font.caption
                     color: lcCardMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
                   }
@@ -674,6 +693,7 @@ Panel {
                   Text {
                     anchors.centerIn: parent
                     text: "󰲋"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.space(18)
                     color: "#3B82F6"
                   }
@@ -687,6 +707,7 @@ Panel {
                     spacing: Style.space(6)
                     Text {
                       text: cfCard.hasUser ? ("Codeforces · @" + cfCard.cf.username) : "Codeforces · Not Configured"
+                      textFormat: Text.PlainText
                       font.pixelSize: Style.font.caption
                       font.weight: Font.Bold
                       color: root.contentForeground
@@ -699,6 +720,7 @@ Panel {
                           ? ("✓ " + cfCard.cf.today_count + " AC today · Rating: " + (cfCard.cf.rating || 0))
                           : ("0 AC today · Rating: " + (cfCard.cf.rating || 0) + " · Rank: " + (cfCard.cf.rank || "unrated")))
                       : "Click ⚙ to configure handle"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.space(10)
                     color: (cfCard.cf.today_count > 0) ? "#10B981" : Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.55)
                   }
@@ -714,6 +736,7 @@ Panel {
                   Text {
                     anchors.centerIn: parent
                     text: "󰌹"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.font.caption
                     color: cfCardMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
                   }
@@ -757,6 +780,7 @@ Panel {
                   Text {
                     anchors.centerIn: parent
                     text: "󰊤"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.space(18)
                     color: "#10B981"
                   }
@@ -770,6 +794,7 @@ Panel {
                     spacing: Style.space(6)
                     Text {
                       text: ghCard.hasUser ? ("GitHub · @" + ghCard.gh.username) : "GitHub · Not Configured"
+                      textFormat: Text.PlainText
                       font.pixelSize: Style.font.caption
                       font.weight: Font.Bold
                       color: root.contentForeground
@@ -782,6 +807,7 @@ Panel {
                           ? ("✓ " + ghCard.gh.today_count + " contributions today · Streak: " + (ghCard.gh.streak || 0) + "d")
                           : ("0 commits today · Streak: " + (ghCard.gh.streak || 0) + "d · Active in 90d"))
                       : "Click ⚙ to configure handle"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.space(10)
                     color: (ghCard.gh.today_count > 0) ? "#10B981" : Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.55)
                   }
@@ -797,6 +823,7 @@ Panel {
                   Text {
                     anchors.centerIn: parent
                     text: "󰌹"
+                    textFormat: Text.PlainText
                     font.pixelSize: Style.font.caption
                     color: ghCardMouse.containsMouse ? (Color.accent || "#38BDF8") : Qt.rgba(1, 1, 1, 0.5)
                   }
@@ -813,6 +840,7 @@ Panel {
 
             Text {
               text: "Configure platforms and reminder schedule:"
+              textFormat: Text.PlainText
               font.pixelSize: Style.font.caption
               color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.7)
             }
@@ -836,8 +864,8 @@ Panel {
 
                 Row {
                   spacing: Style.space(8)
-                  Text { text: "󰘐"; font.pixelSize: Style.space(14); color: "#FFA116"; anchors.verticalCenter: parent.verticalCenter }
-                  Text { text: "LeetCode Username"; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#FFA116"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "󰘐"; textFormat: Text.PlainText; font.pixelSize: Style.space(14); color: "#FFA116"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "LeetCode Username"; textFormat: Text.PlainText; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#FFA116"; anchors.verticalCenter: parent.verticalCenter }
                 }
 
                 Rectangle {
@@ -883,8 +911,8 @@ Panel {
 
                 Row {
                   spacing: Style.space(8)
-                  Text { text: "󰲋"; font.pixelSize: Style.space(14); color: "#3B82F6"; anchors.verticalCenter: parent.verticalCenter }
-                  Text { text: "Codeforces Handle"; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#3B82F6"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "󰲋"; textFormat: Text.PlainText; font.pixelSize: Style.space(14); color: "#3B82F6"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "Codeforces Handle"; textFormat: Text.PlainText; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#3B82F6"; anchors.verticalCenter: parent.verticalCenter }
                 }
 
                 Rectangle {
@@ -930,8 +958,8 @@ Panel {
 
                 Row {
                   spacing: Style.space(8)
-                  Text { text: "󰊤"; font.pixelSize: Style.space(14); color: "#10B981"; anchors.verticalCenter: parent.verticalCenter }
-                  Text { text: "GitHub Username"; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#10B981"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "󰊤"; textFormat: Text.PlainText; font.pixelSize: Style.space(14); color: "#10B981"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "GitHub Username"; textFormat: Text.PlainText; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#10B981"; anchors.verticalCenter: parent.verticalCenter }
                 }
 
                 Rectangle {
@@ -977,8 +1005,8 @@ Panel {
 
                 Row {
                   spacing: Style.space(8)
-                  Text { text: "󰀠"; font.pixelSize: Style.space(14); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
-                  Text { text: "Daily Reminder Time (e.g. 21:00)"; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "󰀠"; textFormat: Text.PlainText; font.pixelSize: Style.space(14); color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
+                  Text { text: "Daily Reminder Time (e.g. 21:00)"; textFormat: Text.PlainText; font.pixelSize: Style.space(11); font.weight: Font.Bold; color: "#F59E0B"; anchors.verticalCenter: parent.verticalCenter }
                 }
 
                 Rectangle {
@@ -1019,6 +1047,7 @@ Panel {
                 Text {
                   anchors.centerIn: parent
                   text: "Save & Sync Now"
+                  textFormat: Text.PlainText
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                   font.weight: Font.Bold
@@ -1041,6 +1070,7 @@ Panel {
                 Text {
                   anchors.centerIn: parent
                   text: "Back"
+                  textFormat: Text.PlainText
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                   color: root.contentForeground
